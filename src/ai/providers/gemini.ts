@@ -1,7 +1,7 @@
 import { GoogleGenAI, type Content, type Part } from '@google/genai';
 import { TIMINGS } from '../../config/constants.js';
 import { child } from '../../logging/logger.js';
-import { errorStatus, isRetryableHttpError, retry, withTimeout } from '../../util/async.js';
+import { errorMessage, errorStatus, isRetryableHttpError, retry, withTimeout } from '../../util/async.js';
 import {
   AIProviderError,
   parseJsonLoose,
@@ -135,7 +135,18 @@ export class GeminiProvider implements AIProvider {
           log.warn({ attempt, delay, status: errorStatus(error) }, 'gemini request failed, retrying'),
       });
     } catch (error) {
-      throw new AIProviderError('Gemini request failed', error, errorStatus(error));
+      const status = errorStatus(error);
+      // "Gemini request failed" alone sends an operator to the logs with nothing to act on.
+      // Google's own message names the real cause, and 401 has one dominant cause worth
+      // spelling out: Google is migrating AI Studio keys from the old AIza "standard" keys to
+      // AQ. "auth keys", and an auth key whose service-account binding did not provision is
+      // rejected with ACCESS_TOKEN_TYPE_UNSUPPORTED no matter how the request is formed.
+      const detail = errorMessage(error);
+      const hint =
+        status === 401
+          ? ' — GEMINI_API_KEY was rejected by Google. If it starts with "AQ." see https://ai.google.dev/gemini-api/docs/api-key; AI_PROVIDER=mock keeps the bot running meanwhile.'
+          : '';
+      throw new AIProviderError(`Gemini request failed${status ? ` (HTTP ${status})` : ''}: ${detail}${hint}`, error, status);
     }
   }
 

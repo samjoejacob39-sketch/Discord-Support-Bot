@@ -6,6 +6,7 @@ import { initProvider } from './ai/registry.js';
 import { attachHandlers, createClient } from './discord/client.js';
 import { createBotContext } from './discord/context.js';
 import { createScheduler } from './jobs/scheduler.js';
+import { printBanner } from './logging/banner.js';
 import { child } from './logging/logger.js';
 import { initRedaction } from './security/redaction.js';
 import { errorMessage } from './util/async.js';
@@ -37,6 +38,17 @@ async function main(): Promise<void> {
 
   const scheduler = createScheduler(ctx);
   client.once(Events.ClientReady, (ready) => {
+    printBanner({
+      botTag: ready.user.tag,
+      guildCount: ready.guilds.cache.size,
+      provider: env.AI_PROVIDER,
+      model: env.AI_PROVIDER === 'mock' ? 'canned replies' : env.GEMINI_MODEL,
+      webSearch: env.WEB_SEARCH_PROVIDER,
+      webFetch: env.WEB_FETCH_ENABLED,
+      database: env.DATABASE_PATH,
+      environment: env.NODE_ENV,
+      degraded: env.AI_PROVIDER === 'mock' ? 'AI_PROVIDER=mock — replies are canned, not real answers.' : undefined,
+    });
     scheduler.runOnce(ready);
     scheduler.start(ready);
   });

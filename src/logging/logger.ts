@@ -9,10 +9,10 @@ import { getEnv } from '../config/env.js';
 function loggingConfig(): { level: string; pretty: boolean } {
   try {
     const env = getEnv();
-    return {
-      level: env.LOG_LEVEL,
-      pretty: env.NODE_ENV !== 'production' && env.LOG_LEVEL !== 'silent',
-    };
+    const pretty =
+      env.LOG_LEVEL !== 'silent' &&
+      (env.LOG_FORMAT === 'pretty' || (env.LOG_FORMAT === 'auto' && env.NODE_ENV !== 'production'));
+    return { level: env.LOG_LEVEL, pretty };
   } catch {
     return { level: 'info', pretty: true };
   }

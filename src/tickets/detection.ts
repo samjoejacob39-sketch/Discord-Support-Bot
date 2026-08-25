@@ -26,7 +26,23 @@ export function supportSurfaceIds(channel: GuildTextBasedChannel): { channelId: 
   return { channelId: channel.id, parentChannelId: null, categoryId: channel.parentId ?? null };
 }
 
+/**
+ * Channels a ticket bot opened are support surfaces by their very nature, so the bot answers
+ * there without anyone configuring anything and without members needing `/ask`. Ticket systems
+ * name their channels and threads predictably — `ticket-0042`, `Ticket #12`, `support-ticket`.
+ *
+ * A thread inherits its parent's name, so a thread called "billing" under `#tickets` counts too.
+ */
+export function looksLikeTicketChannel(channel: GuildTextBasedChannel): boolean {
+  const names = [channel.name];
+  if (channel.isThread() && channel.parent) names.push(channel.parent.name);
+  return names.some((name) => /ticket/i.test(name));
+}
+
 function isSupportSurface(channel: GuildTextBasedChannel, settings: GuildSettings): boolean {
+  // Checked before the mode so a ticket channel works out of the box in any configuration.
+  if (looksLikeTicketChannel(channel)) return true;
+
   const { channelId, parentChannelId, categoryId } = supportSurfaceIds(channel);
   switch (settings.supportMode) {
     case 'all':
@@ -75,7 +91,11 @@ export function evaluateMessage(
   return {
     record: true,
     respond: true,
-    reason: invoked ? 'bot was mentioned' : `support surface (${settings.supportMode})`,
+    reason: invoked
+      ? 'bot was mentioned'
+      : looksLikeTicketChannel(message.channel)
+        ? 'ticket channel'
+        : `support surface (${settings.supportMode})`,
     invoked,
   };
 }

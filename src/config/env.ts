@@ -15,6 +15,10 @@ const optionalString = z
 const envSchema = z.object({
   NODE_ENV: z.enum(['development', 'test', 'production']).default('development'),
   LOG_LEVEL: z.enum(['trace', 'debug', 'info', 'warn', 'error', 'fatal', 'silent']).default('info'),
+  // Log shape is deliberately independent of NODE_ENV: a production box feeding a log
+  // aggregator wants "json", but a production box you actually watch in a terminal wants
+  // "pretty". "auto" keeps the old behaviour (json in production, pretty everywhere else).
+  LOG_FORMAT: z.enum(['auto', 'pretty', 'json']).default('auto'),
 
   DISCORD_TOKEN: optionalString,
   DISCORD_APPLICATION_ID: optionalString,
