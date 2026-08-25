@@ -1,0 +1,42 @@
+[Unit]
+Description=Shinchat Helper — Discord AI support bot
+Documentation=https://github.com/your-org/shinchat-helper
+After=network-online.target
+Wants=network-online.target
+# Don't hammer Discord if it is crash-looping on a bad config. These are [Unit]
+# settings in systemd 230+; putting them under [Service] is silently ignored.
+StartLimitBurst=5
+StartLimitIntervalSec=120
+
+[Service]
+Type=simple
+User=shinchat
+Group=shinchat
+WorkingDirectory=/opt/shinchat-helper
+EnvironmentFile=/opt/shinchat-helper/.env
+ExecStart=/usr/bin/node dist/index.js
+
+# The bot exits 0 on SIGTERM after closing the database; anything else is a crash.
+Restart=always
+RestartSec=5
+
+# Least privilege: the process needs its own data directory and nothing else.
+NoNewPrivileges=true
+ProtectSystem=strict
+ProtectHome=true
+PrivateTmp=true
+ProtectKernelTunables=true
+ProtectKernelModules=true
+ProtectControlGroups=true
+RestrictSUIDSGID=true
+RestrictNamespaces=true
+LockPersonality=true
+ReadWritePaths=/opt/shinchat-helper/data
+
+# Structured JSON logs land in the journal.
+StandardOutput=journal
+StandardError=journal
+SyslogIdentifier=shinchat-helper
+
+[Install]
+WantedBy=multi-user.target

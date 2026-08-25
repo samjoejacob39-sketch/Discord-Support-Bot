@@ -1,0 +1,1 @@
+{"version":3,"file":"none.js","sourceRoot":"","sources":["../../../src/web/providers/none.ts"],"names":[],"mappings":"AAAA,OAAO,EAAE,sBAAsB,EAAuB,MAAM,sBAAsB,CAAC;AAEnF,yFAAyF;AACzF,MAAM,OAAO,kBAAkB;IACpB,IAAI,GAAG,MAAM,CAAC;IACd,OAAO,GAAG,KAAK,CAAC;IAEzB,KAAK,CAAC,MAAM;QACV,MAAM,IAAI,sBAAsB,EAAE,CAAC;IACrC,CAAC;CACF"}

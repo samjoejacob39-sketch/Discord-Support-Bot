@@ -1,0 +1,40 @@
+{
+  "name": "shinchat-helper",
+  "version": "1.0.0",
+  "private": true,
+  "description": "Shinchat Helper — a Discord-native AI support assistant with server-taught knowledge, web verification and human escalation.",
+  "license": "MIT",
+  "type": "module",
+  "engines": {
+    "node": ">=20.11"
+  },
+  "main": "dist/index.js",
+  "scripts": {
+    "dev": "tsx watch src/index.ts",
+    "start": "node dist/index.js",
+    "build": "tsc -p tsconfig.json",
+    "typecheck": "tsc -p tsconfig.json --noEmit && tsc -p tsconfig.test.json",
+    "test": "vitest run",
+    "test:watch": "vitest",
+    "commands:register": "tsx src/scripts/registerCommands.ts",
+    "commands:clear": "tsx src/scripts/clearCommands.ts",
+    "commands:register:prod": "node dist/scripts/registerCommands.js",
+    "commands:clear:prod": "node dist/scripts/clearCommands.js"
+  },
+  "dependencies": {
+    "@google/genai": "^2.18.0",
+    "better-sqlite3": "^13.0.3",
+    "discord.js": "^14.27.0",
+    "dotenv": "^17.2.3",
+    "pino": "^10.3.1",
+    "pino-pretty": "^13.1.3",
+    "zod": "^4.4.3"
+  },
+  "devDependencies": {
+    "@types/better-sqlite3": "^7.6.13",
+    "@types/node": "^24.13.3",
+    "tsx": "^4.23.12",
+    "typescript": "^5.9.3",
+    "vitest": "^4.1.11"
+  }
+}

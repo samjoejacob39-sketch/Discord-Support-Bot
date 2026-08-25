@@ -1,0 +1,160 @@
+import { GoogleGenAI, type Content, type Part } from '@google/genai';
+import { TIMINGS } from '../../config/constants.js';
+import { child } from '../../logging/logger.js';
+import { errorStatus, isRetryableHttpError, retry, withTimeout } from '../../util/async.js';
+import {
+  AIProviderError,
+  parseJsonLoose,
+  type AIGenerateRequest,
+  type AIGenerateResult,
+  type AIHealth,
+  type AIProvider,
+  type AITurn,
+  type AIToolSpec,
+  type JsonSchema,
+  type ModelTier,
+} from '../provider.js';
+
+const log = child('ai:gemini');
+
+export interface GeminiProviderOptions {
+  apiKey: string;
+  mainModel: string;
+  fastModel: string;
+}
+
+function toParts(turn: AITurn): Part[] {
+  if (turn.kind === 'user') return [{ text: turn.text }];
+  if (turn.kind === 'tool') {
+    return turn.results.map((result) => ({
+      functionResponse: { name: result.name, response: result.response },
+    }));
+  }
+  const parts: Part[] = [];
+  if (turn.text && turn.text.trim().length > 0) parts.push({ text: turn.text });
+  for (const call of turn.toolCalls ?? []) {
+    parts.push({ functionCall: { name: call.name, args: call.args } });
+  }
+  return parts.length > 0 ? parts : [{ text: '' }];
+}
+
+function toContents(turns: AITurn[]): Content[] {
+  return turns
+    .map((turn) => ({ role: turn.kind === 'model' ? 'model' : 'user', parts: toParts(turn) }))
+    .filter((content) => content.parts.length > 0);
+}
+
+function toFunctionDeclarations(tools: AIToolSpec[]) {
+  return tools.map((tool) => ({
+    name: tool.name,
+    description: tool.description,
+    parameters: toGeminiSchema(tool.parameters),
+  }));
+}
+
+/** Our JsonSchema uses lowercase types; the Gemini API expects uppercase `Type` values. */
+function toGeminiSchema(schema: JsonSchema): Record<string, unknown> {
+  const output: Record<string, unknown> = { type: schema.type.toUpperCase() };
+  if (schema.description) output.description = schema.description;
+  if (schema.enum) output.enum = schema.enum;
+  if (schema.nullable) output.nullable = true;
+  if (schema.minimum !== undefined) output.minimum = schema.minimum;
+  if (schema.maximum !== undefined) output.maximum = schema.maximum;
+  if (schema.items) output.items = toGeminiSchema(schema.items);
+  if (schema.properties) {
+    output.properties = Object.fromEntries(
+      Object.entries(schema.properties).map(([key, value]) => [key, toGeminiSchema(value)]),
+    );
+  }
+  if (schema.required && schema.required.length > 0) output.required = schema.required;
+  return output;
+}
+
+export class GeminiProvider implements AIProvider {
+  readonly name = 'gemini';
+  private readonly client: GoogleGenAI;
+
+  constructor(private readonly options: GeminiProviderOptions) {
+    this.client = new GoogleGenAI({ apiKey: options.apiKey });
+  }
+
+  modelFor(tier: ModelTier): string {
+    return tier === 'fast' ? this.options.fastModel : this.options.mainModel;
+  }
+
+  async generate(request: AIGenerateRequest): Promise<AIGenerateResult> {
+    const model = this.modelFor(request.tier ?? 'main');
+    const config: Record<string, unknown> = {
+      temperature: request.temperature ?? 0.4,
+      maxOutputTokens: request.maxOutputTokens ?? 1200,
+    };
+    if (request.system) config.systemInstruction = request.system;
+    if (request.responseSchema) {
+      config.responseMimeType = 'application/json';
+      config.responseSchema = toGeminiSchema(request.responseSchema);
+    } else if (request.tools && request.tools.length > 0) {
+      config.tools = [{ functionDeclarations: toFunctionDeclarations(request.tools) }];
+      // The agent loop drives tool execution itself; never let the SDK call functions.
+      config.automaticFunctionCalling = { disable: true };
+    }
+    if (request.signal) config.abortSignal = request.signal;
+
+    const call = async (): Promise<AIGenerateResult> => {
+      const response = await withTimeout(
+        this.client.models.generateContent({
+          model,
+          contents: toContents(request.turns),
+          config,
+        }),
+        TIMINGS.aiRequestTimeoutMs,
+      );
+
+      const toolCalls = (response.functionCalls ?? []).map((fc) => ({
+        name: fc.name ?? '',
+        args: (fc.args ?? {}) as Record<string, unknown>,
+      }));
+
+      return {
+        text: response.text ?? '',
+        toolCalls: toolCalls.filter((tc) => tc.name.length > 0),
+        usage: {
+          inputTokens: response.usageMetadata?.promptTokenCount,
+          outputTokens: response.usageMetadata?.candidatesTokenCount,
+        },
+        model,
+        finishReason: response.candidates?.[0]?.finishReason,
+      };
+    };
+
+    try {
+      return await retry(call, {
+        attempts: 3,
+        baseDelayMs: 600,
+        retryable: isRetryableHttpError,
+        onRetry: (error, attempt, delay) =>
+          log.warn({ attempt, delay, status: errorStatus(error) }, 'gemini request failed, retrying'),
+      });
+    } catch (error) {
+      throw new AIProviderError('Gemini request failed', error, errorStatus(error));
+    }
+  }
+
+  async generateJson<T = unknown>(request: AIGenerateRequest & { responseSchema: JsonSchema }): Promise<T> {
+    const result = await this.generate({ ...request, tools: undefined });
+    return parseJsonLoose<T>(result.text);
+  }
+
+  async health(): Promise<AIHealth> {
+    try {
+      const result = await this.generate({
+        turns: [{ kind: 'user', text: 'Reply with the single word: ok' }],
+        tier: 'fast',
+        maxOutputTokens: 16,
+        temperature: 0,
+      });
+      return { ok: result.text.trim().length > 0, detail: this.modelFor('fast') };
+    } catch (error) {
+      return { ok: false, detail: error instanceof Error ? error.message : String(error) };
+    }
+  }
+}

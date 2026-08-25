@@ -1,0 +1,28 @@
+{
+  "permissions": {
+    "allow": [
+      "Bash(npm -v)",
+      "Bash(git --version)",
+      "Bash(npm view *)",
+      "Bash(npm install *)",
+      "Bash(node -e ' *)",
+      "Bash(awk '/^export declare interface GenerateContentConfig/,/^}/' node_modules/@google/genai/dist/genai.d.ts)",
+      "Bash(awk '/^export declare interface Tool /,/^}/' node_modules/@google/genai/dist/genai.d.ts)",
+      "Bash(awk '/^export declare interface FunctionDeclaration /,/^}/' node_modules/@google/genai/dist/genai.d.ts)",
+      "Bash(npx tsc *)",
+      "Bash(npx tsx -e ' *)",
+      "Bash(awk '/^export declare interface GenerateContentResponseUsageMetadata/,/^}/' node_modules/@google/genai/dist/genai.d.ts)",
+      "Bash(awk '/^export declare interface FunctionResponse /,/^}/' node_modules/@google/genai/dist/genai.d.ts)",
+      "Bash(node -e \"console.log\\(require\\('discord.js/package.json'\\).version\\)\")",
+      "Bash(npx vitest *)",
+      "Bash(npm test *)",
+      "Bash(npm run *)",
+      "Bash(git check-ignore *)",
+      "Bash(node -e \"const p=require\\('./package.json'\\);console.log\\(JSON.stringify\\(p.scripts,null,1\\)\\);console.log\\('engines',JSON.stringify\\(p.engines\\)\\)\")",
+      "Bash(node -e \"const p=require\\('./package.json'\\);console.log\\(Object.keys\\(p.devDependencies||{}\\).join\\(' '\\)\\);console.log\\('deps:',Object.keys\\(p.dependencies||{}\\).join\\(' '\\)\\)\")",
+      "Bash(git init *)",
+      "Bash(git add *)",
+      "Bash(grep -cE \"^\\\\.env$\")"
+    ]
+  }
+}

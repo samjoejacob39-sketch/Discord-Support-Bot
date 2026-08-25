@@ -1,0 +1,14 @@
+import { ActivityType } from 'discord.js';
+/**
+ * Presence is intentionally boring (§57): one line that tells members how to reach the bot,
+ * refreshed on a slow timer so it never becomes a rate-limit problem.
+ */
+export function refreshPresence(client, ctx) {
+    const open = ctx.store.tickets.countOpenGlobal();
+    const state = open > 0 ? `${open} open ticket${open === 1 ? '' : 's'} · /help` : 'support questions · /help';
+    client.user.setPresence({
+        status: 'online',
+        activities: [{ name: state, type: ActivityType.Listening }],
+    });
+}
+//# sourceMappingURL=presence.js.map
