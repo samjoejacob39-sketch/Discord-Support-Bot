@@ -1,0 +1,29 @@
+# ── Secrets ──────────────────────────────────────────────────────────────────
+# Never commit these. The VPS gets its own .env written by hand.
+.env
+.env.*
+!.env.example
+
+# ── Dependencies and build output ────────────────────────────────────────────
+node_modules/
+dist/
+*.tsbuildinfo
+
+# ── Database ─────────────────────────────────────────────────────────────────
+# Everything the bot is taught lives here. Back it up, don't commit it.
+data/
+*.sqlite
+*.sqlite-journal
+*.sqlite-wal
+*.sqlite-shm
+backup/
+
+# ── Logs and local tooling ───────────────────────────────────────────────────
+*.log
+npm-debug.log*
+coverage/
+.claude/
+.vscode/
+.idea/
+.DS_Store
+Thumbs.db
